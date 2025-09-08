@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Charly Cripto — App</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<style>
+  :root{
+    --txt:#e8ecf1; --mut:#a5afc3; --card:rgba(15,17,25,.66);
+    --line:rgba(255,255,255,.08); --chip:#111522; --chipOn:#0f3a7a;
+    --good:#28c76f; --bad:#ff4d4f;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif;
+    /* Fondo: Muro.jpg en la RAÍZ del proyecto */
+    background:#0b0d12 url("/Muro.jpg") center/cover fixed no-repeat;
+  }
+  .scrim{position:fixed;inset:0;background:linear-gradient(180deg,rgba(5,7,10,.55),rgba(5,7,10,.85))}
+  .wrap{position:relative;max-width:1180px;margin:0 auto;padding:16px}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  h1{margin:0;font-size:22px}
+  .sub{color:var(--mut);font-size:13px}
+
+  .card{
+    backdrop-filter: blur(12px) saturate(120%); -webkit-backdrop-filter: blur(12px) saturate(120%);
+    background:var(--card); border:1px solid var(--line); border-radius:18px; padding:14px;
+    box-shadow:0 10px 30px rgba(0,0,0,.3);
+  }
+  .grid-top{display:grid;gap:14px;margin-top:10px}
+  .grid-btm{display:grid;gap:14px;margin-top:14px}
+  @media(min-width:980px){
+    .grid-top{grid-template-columns:1fr .62fr}
+    .grid-btm{grid-template-columns:1.1fr .9fr}
+  }
+
+  .d-grid{display:grid;gap:10px}
+  @media(min-width:640px){.d-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(min-width:980px){.d-grid{grid-template-columns:repeat(3,1fr)}}
+  .d-box{background:rgba(17,19,27,.6); border:1px solid var(--line); border-radius:14px; padding:12px}
+  .ttl{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
+  .big{font-size:20px;font-weight:800}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{
+    background:var(--chip); color:#c9d6ff; border:1px solid var(--line);
+    padding:8px 12px; border-radius:999px; font-size:13px; cursor:pointer; user-select:none;
+  }
+  .chip.active{background:var(--chipOn); color:#fff; border-color:transparent}
+
+  .table{width:100%;border-collapse:collapse}
+  .table th,.table td{padding:10px;border-bottom:1px solid var(--line);font-size:14px}
+  .table th{text-align:left;color:var(--mut);font-weight:600}
+  .table td:last-child{text-align:right}
+  .mut{color:var(--mut)}
+  .footer{margin:18px 0 8px;color:var(--mut);font-size:12px;text-align:center}
+  .topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+  .cta{display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(17,19,27,.6);color:#dbe9ff;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="scrim"></div>
+<div class="wrap">
+
+  <!-- Header -->
+  <div class="topbar">
+    <div>
+      <h1>Charly Cripto • App</h1>
+    </div>
+    <a class="cta" href="https://chat.openai.com" target="_blank" rel="noopener">IA de Análisis Técnico</a>
+  </div>
+
+  <!-- ARRIBA: Dólar + Selector de Par -->
+  <div class="grid-top">
+
+    <!-- Cotizaciones del DÓLAR -->
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <div class="row"><span class="ttl">Cotizaciones del Dólar (ARS)</span></div>
+        <div class="mut" id="usd-time">—</div>
+      </div>
+      <div class="d-grid">
+        <div class="d-box"><div class="ttl">Dólar Oficial</div>
+          <div class="row" style="justify-content:space-between">
+            <div>venta<br><span class="big" id="of-ask">—</span></div>
+            <div>compra<br><span class="big" id="of-bid">—</span></div>
+          </div></div>
+        <div class="d-box"><div class="ttl">Dólar Tarjeta</div>
+          <div class="row" style="justify-content:space-between">
+            <div>venta<br><span class="big" id="tar-ask">—</span></div>
+            <div>compra<br><span class="big" id="tar-bid">—</span></div>
+          </div></div>
+        <div class="d-box"><div class="ttl">Dólar Blue</div>
+          <div class="row" style="justify-content:space-between">
+            <div>venta<br><span class="big" id="blue-ask">—</span></div>
+            <div>compra<br><span class="big" id="blue-bid">—</span></div>
+          </div></div>
+        <div class="d-box"><div class="ttl">Dólar MEP</div>
+          <div class="row" style="justify-content:space-between">
+            <div>venta<br><span class="big" id="mep-ask">—</span></div>
+            <div>compra<br><span class="big" id="mep-bid">—</span></div>
+          </div></div>
+        <div class="d-box"><div class="ttl">Dólar CCL</div>
+          <div class="row" style="justify-content:space-between">
+            <div>venta<br><span class="big" id="ccl-ask">—</span></div>
+            <div>compra<br><span class="big" id="ccl-bid">—</span></div>
+          </div></div>
+        <div class="d-box"><div class="ttl">Dólar Cripto</div>
+          <div class="row" style="justify-content:space-between">
+            <div>venta<br><span class="big" id="cripto-ask">—</span></div>
+            <div>compra<br><span class="big" id="cripto-bid">—</span></div>
+          </div></div>
+      </div>
+      <div class="mut" style="margin-top:8px">act: <span id="usd-age">—</span></div>
+    </div>
+
+    <!-- Selector de PARES -->
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <div class="ttl">Pares (Binance)</div>
+        <div class="mut" id="pair-label">BINANCE:BTCUSDT • 1h</div>
+      </div>
+      <div class="chips" id="pair-chips">
+        <div class="chip active" data-symbol="BTCUSDT">BTC/USDT</div>
+        <div class="chip" data-symbol="ETHUSDT">ETH/USDT</div>
+        <div class="chip" data-symbol="SOLUSDT">SOL/USDT</div>
+        <div class="chip" data-symbol="BNBUSDT">BNB/USDT</div>
+        <div class="chip" data-symbol="ADAUSDT">ADA/USDT</div>
+        <div class="chip" data-symbol="XRPUSDT">XRP/USDT</div>
+        <div class="chip" data-symbol="DOGEUSDT">DOGE/USDT</div>
+        <div class="chip" data-symbol="USDTARS">USDT/ARS</div>
+        <
