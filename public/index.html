@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Charly Cripto • App</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<style>
+  :root{--bg:#0e0f13;--card:#151821;--mut:#9aa3b2;--line:#232833;--txt:#e8ecf1;--good:#18c98a;--bad:#ff5d5d}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif}
+  a{color:#9ecbff}
+  .wrap{max-width:1100px;margin:0 auto;padding:18px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+  h1{margin:0;font-size:22px}
+  .grid{display:grid;gap:12px}
+  @media(min-width:900px){.grid{grid-template-columns:2fr 1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .sub{color:var(--mut);font-size:13px}
+  .row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px dashed var(--line)}
+  .row:last-child{border-bottom:0}
+  .price{font-variant-numeric:tabular-nums}
+  .tbl{width:100%;border-collapse:collapse}
+  .tbl th,.tbl td{padding:8px;border-bottom:1px solid var(--line);text-align:right}
+  .tbl th:first-child,.tbl td:first-child{text-align:left}
+  .pill{display:inline-flex;gap:6px;align-items:center;padding:4px 8px;border:1px solid var(--line);border-radius:999px;font-size:12px;color:var(--mut)}
+  .ts{font-size:12px;color:var(--mut);margin-top:6px}
+  .ai{display:flex;gap:8px}
+  textarea{width:100%;min-height:90px;background:#0d0f15;color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:10px;resize:vertical}
+  button{cursor:pointer;background:#1b77ff;color:white;border:0;border-radius:10px;padding:10px 14px;font-weight:600}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Charly Cripto • App</h1>
+      <div class="pill">BTC • USD/ARS Blue • Binance + otros</div>
+    </header>
+
+    <div class="grid">
+      <!-- Columna 1: Cotizaciones + Gráfico -->
+      <div class="grid">
+        <section class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <h3 style="margin:0">Cotizaciones BTC</h3>
+            <span id="lastTs" class="sub">—</span>
+          </div>
+          <table class="tbl">
+            <thead>
+              <tr><th>Exchange</th><th>BTC/USD</th><th>BTC/ARS (blue)</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Binance</td><td id="usd_binance" class="price">—</td><td id="ars_binance" class="price">—</td></tr>
+              <tr><td>Coinbase</td><td id="usd_coinbase" class="price">—</td><td id="ars_coinbase" class="price">—</td></tr>
+              <tr><td>Kraken</td><td id="usd_kraken" class="price">—</td><td id="ars_kraken" class="price">—</td></tr>
+              <tr><td><b>Ref. Promedio</b></td><td id="usd_ref" class="price mono">—</td><td id="ars_ref" class="price mono">—</td></tr>
+            </tbody>
+          </table>
+          <div class="ts">Dólar blue (promedio): <span id="blueAvg">—</span> | buy <span id="blueBuy">—</span> / sell <span id="blueSell">—</span></div>
+        </section>
+
+        <section class="card">
+          <h3 style="margin:0 0 8px">Gráfico (BINANCE:BTCUSDT)</h3>
+          <div class="tradingview-widget-container">
+            <div id="tradingview_btc" style="height:420px;"></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Columna 2: Dólar + IA -->
+      <div>
+        <section class="card">
+          <h3 style="margin:0 0 8px">Dólar en Argentina</h3>
+          <div class="row"><div>Oficial</div><div class="price">Compra: <span id="of_buy">—</span> • Venta: <span id="of_sell">—</span></div></div>
+          <div class="row"><div>Blue</div><div class="price">Compra: <span id="bl_buy">—</span> • Venta: <span id="bl_sell">—</span></div></div>
+          <div class="row"><div>Blue (promedio)</div><div class="price mono" id="bl_avg">—</div></div>
+          <div class="ts" id="tsDolar">—</div>
+        </section>
+
+        <section class="card">
+          <h3 style="margin:0 0 8px">IA de Análisis Técnico</h3>
+          <textarea id="aiText" placeholder="Ej: Analizá BTCUSDT en 4H y 1D con soportes y resistencias..."></textarea>
+          <button id="btnAI">Abrir en ChatGPT</button>
+        </section>
+      </div>
+    </div>
+
+    <p class="sub" style="margin-top:14px">Hecho con 💙 por Charly — App. Actualiza cada 15s.</p>
+  </div>
+
+  <!-- TradingView -->
+  <script src="https://s3.tradingview.com/tv.js"></script>
+  <script>
+    // TradingView init
+    function initTV(){
+      if (!window.TradingView) return setTimeout(initTV, 300);
+      new TradingView.widget({
+        autosize: true,
+        symbol: "BINANCE:BTCUSDT",
+        interval: "60",
+        timezone: "Etc/UTC",
+        theme: "dark",
+        style: "1",
+        locale: "es",
+        container_id: "tradingview_btc"
+      });
+    }
+    initTV();
+
+    const $ = (id)=>document.getElementById(id);
+    const fmt = (n, d=2)=> Number.isFinite(n)?n.toLocaleString('es-AR',{minimumFractionDigits:d,maximumFractionDigits:d}):"—";
+
+    async function loadQuotes(){
+      try{
+        const r = await fetch("/api/quotes");
+        const j = await r.json();
+        $("usd_binance").textContent = fmt(j.usd.binance);
+        $("usd_coinbase").textContent= fmt(j.usd.coinbase);
+        $("usd_kraken").textContent  = fmt(j.usd.kraken);
+        $("usd_ref").textContent     = fmt(j.usd_ref);
+
+        const blue = j.ars_rate_blue.blue_avg;
+        $("ars_binance").textContent = fmt(j.usd.binance*blue,0);
+        $("ars_coinbase").textContent= fmt(j.usd.coinbase*blue,0);
+        $("ars_kraken").textContent  = fmt(j.usd.kraken*blue,0);
+        $("ars_ref").textContent     = fmt(j.btc_ars_ref,0);
+
+        $("blueAvg").textContent = fmt(j.ars_rate_blue.blue_avg,2);
+        $("blueBuy").textContent = fmt(j.ars_rate_blue.blue_buy,2);
+        $("blueSell").textContent= fmt(j.ars_rate_blue.blue_sell,2);
+        $("lastTs").textContent  = new Date(j.ts).toLocaleTimeString("es-AR");
+      }catch(e){
+        $("lastTs").innerHTML = '<span style="color:#ff5d5d">Error</span>';
+      }
+    }
+
+    async function loadDolar(){
+      try{
+        const r = await fetch("/api/dolar");
+        const j = await r.json();
+        $("of_buy").textContent = fmt(j.oficial_buy,2);
+        $("of_sell").textContent= fmt(j.oficial_sell,2);
+        $("bl_buy").textContent = fmt(j.blue_buy,2);
+        $("bl_sell").textContent= fmt(j.blue_sell,2);
+        $("bl_avg").textContent = fmt(j.blue_avg,2);
+        $("tsDolar").textContent= new Date(j.ts).toLocaleTimeString("es-AR");
+      }catch(e){
+        $("tsDolar").innerHTML = '<span style="color:#ff5d5d">Error</span>';
+      }
+    }
+
+    $("btnAI").addEventListener("click",()=>{
+      const txt = $("aiText").value || "Analizá BTCUSDT en 4H y 1D con soportes y resistencias.";
+      window.open("https://chat.openai.com/?q="+encodeURIComponent(txt),"_blank");
+    });
+
+    loadQuotes(); loadDolar();
+    setInterval(loadQuotes,15000);
+    setInterval(loadDolar,30000);
+  </script>
+</body>
+</html>
