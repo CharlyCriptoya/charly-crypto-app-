@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charly Cripto • App</title>
+<link rel="preconnect" href="https://s3.tradingview.com">
+<style>
+  :root{
+    --bg:#0e0f13; --card:#151821; --mut:#9aa3b2; --line:#232833; --txt:#e8ecf1; --pill:#232833; --accent:#2962ff;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; color:var(--txt); font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif;
+    background:#000 url('muro.jpg') center/cover fixed no-repeat;
+  }
+  /* oscurecer el muro para que el texto se lea */
+  body::before{
+    content:""; position:fixed; inset:0; background:rgba(10,12,18,.75); z-index:-1;
+  }
+  .wrap{max-width:1100px; margin:0 auto; padding:16px}
+  h1{margin:0 0 12px; font-size:26px; letter-spacing:.2px}
+  h3{margin:0 0 10px; font-size:20px}
+  .section{background:rgba(21,24,33,.92); padding:14px; border-radius:14px; margin-top:14px; box-shadow:0 6px 18px rgba(0,0,0,.35)}
+  .mut{color:var(--mut); font-size:13px}
+  .grid-cards{
+    display:grid; gap:12px; grid-template-columns:repeat(2,1fr);
+  }
+  .card{
+    background:linear-gradient(180deg, rgba(35,40,51,.85), rgba(21,24,33,.9));
+    border:1px solid rgba(255,255,255,.05);
+    border-radius:12px; padding:12px
+  }
+  .row{display:flex; justify-content:space-between; gap:8px; margin-top:6px; font-size:15px}
+  .lbl{color:var(--mut); font-size:12px; letter-spacing:.6px}
+  .price{font-weight:700; font-size:18px}
+  .pairs{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+  .pairs button{
+    border:0; border-radius:10px; padding:10px 10px; font-size:14px; background:var(--pill); color:var(--txt); cursor:pointer
+  }
+  .pairs button.active{background:var(--accent)}
+  table{width:100%; border-collapse:collapse; font-size:14px}
+  th,td{padding:10px 8px; border-bottom:1px solid var(--line)}
+  th{text-align:left; font-weight:600; color:#cfe0ff}
+  #tvchart{height:420px}
+  @media (min-width:880px){ .grid-cards{grid-template-columns:repeat(3,1fr)} }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Charly Cripto • App</h1>
+
+    <!-- Widget DÓLAR -->
+    <div class="section">
+      <h3>Cotizaciones del Dólar (ARS) <span class="mut" id="dolar-time"></span></h3>
+      <div class="grid-cards">
+        <div class="card">
+          <div class="lbl">DÓLAR OFICIAL</div>
+          <div class="row"><span class="mut">venta</span><span class="price" id="oficial-ask">—</span></div>
+          <div class="row"><span class="mut">compra</span><span class="price" id="oficial-bid">—</span></div>
+          <div class="mut">act: <span id="oficial-ts">0s</span></div>
+        </div>
+        <div class="card">
+          <div class="lbl">DÓLAR TARJETA</div>
+          <div class="row"><span class="mut">venta</span><span class="price" id="tarjeta-ask">—</span></div>
+          <div class="row"><span class="mut">compra</span><span class="price" id="tarjeta-bid">—</span></div>
+          <div class="mut">act: <span id="tarjeta-ts">0s</span></div>
+        </div>
+        <div class="card">
+          <div class="lbl">DÓLAR BLUE</div>
+          <div class="row"><span class="mut">venta</span><span class="price" id="blue-ask">—</span></div>
+          <div class="row"><span class="mut">compra</span><span class="price" id="blue-bid">—</span></div>
+          <div class="mut">act: <span id="blue-ts">0s</span></div>
+        </div>
+        <div class="card">
+          <div class="lbl">DÓLAR MEP</div>
+          <div class="row"><span class="mut">venta</span><span class="price" id="mep-ask">—</span></div>
+          <div class="row"><span class="mut">compra</span><span class="price" id="mep-bid">—</span></div>
+          <div class="mut">act: <span id="mep-ts">0s</span></div>
+        </div>
+        <div class="card">
+          <div class="lbl">DÓLAR CCL</div>
+          <div class="row"><span class="mut">venta</span><span class="price" id="ccl-ask">—</span></div>
+          <div class="row"><span class="mut">compra</span><span class="price" id="ccl-bid">—</span></div>
+          <div class="mut">act: <span id="ccl-ts">0s</span></div>
+        </div>
+        <div class="card">
+          <div class="lbl">DÓLAR CRIPTO</div>
+          <div class="row"><span class="mut">venta</span><span class="price" id="cripto-ask">—</span></div>
+          <div class="row"><span class="mut">compra</span><span class="price" id="cripto-bid">—</span></div>
+          <div class="mut">act: <span id="cripto-ts">0s</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pares -->
+    <div class="section">
+      <h3>Pares (Binance)</h3>
+      <div class="pairs" id="pairs">
+        <button
