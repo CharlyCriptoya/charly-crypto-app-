@@ -1,0 +1,62 @@
+<script>
+  // ... todo lo demás igual (no toques nada)
+
+  async function fetchDolar(){
+    // 1) intenta a tu backend
+    const leerLocal = async () => {
+      try{
+        const r = await fetch('/api/dolar', {cache:'no-store'});
+        if(!r.ok) throw new Error('bad status');
+        const j = await r.json();
+        return j;
+      }catch(e){ return null; }
+    };
+
+    // 2) fallback directo a CriptoYa y normalizo a {..ask,bid..}
+    const leerCriptoYa = async () => {
+      try{
+        const r = await fetch('https://criptoya.com/api/dolar', {cache:'no-store'});
+        if(!r.ok) throw new Error('bad status');
+        const d = await r.json();
+        const pick = (o) => ({ ask: o?.venta ?? null, bid: o?.compra ?? null });
+        return {
+          oficial: pick(d.oficial || d.official || {}),
+          tarjeta: pick(d.tarjeta || d.solidario || {}),
+          blue:    pick(d.blue || {}),
+          mep:     pick(d.mep || {}),
+          ccl:     pick(d.ccl || {}),
+          cripto:  pick(d.cripto || d.crypto || {}),
+          ts: Date.now()
+        };
+      }catch(e){ return null; }
+    };
+
+    // 3) elegir fuente (local -> criptoya)
+    const j = (await leerLocal()) || (await leerCriptoYa());
+
+    try{
+      // si no hay nada, dejo guiones
+      if(!j) throw new Error('no data');
+
+      // guardo dólar cripto venta para convertir USD->ARS en la tabla
+      usdToArs = j.cripto?.ask ?? null;
+
+      const fmt = n => n==null ? '—' : '$ '+new Intl.NumberFormat('es-AR',{maximumFractionDigits:2}).format(n);
+      const set = (id, v) => document.getElementById(id).textContent = fmt(v);
+
+      set('of-ask', j.oficial?.ask); set('of-bid', j.oficial?.bid);
+      set('tar-ask', j.tarjeta?.ask); set('tar-bid', j.tarjeta?.bid);
+      set('blue-ask', j.blue?.ask);   set('blue-bid', j.blue?.bid);
+      set('mep-ask', j.mep?.ask);     set('mep-bid', j.mep?.bid);
+      set('ccl-ask', j.ccl?.ask);     set('ccl-bid', j.ccl?.bid);
+      set('cripto-ask', j.cripto?.ask); set('cripto-bid', j.cripto?.bid);
+
+      document.getElementById('usd-time').textContent = new Date(j.ts||Date.now()).toLocaleTimeString();
+      document.getElementById('usd-age').textContent = '0s';
+    }catch(e){
+      document.getElementById('usd-time').textContent = 'error';
+    }
+  }
+
+  // ... el resto sigue igual (stats, quotes, chips, init+interval)
+</script>
