@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Charly Cripto • CriptoYa UI</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<style>
+  :root{--bg:#0e0f13;--card:#1a1f2a;--mut:#9aa3b2;--line:#2a3040;--txt:#e8ecf1;--accent:#4f7dff}
+  *{box-sizing:border-box} body{margin:0;color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif;
+    background:url("./Muro.jpg") center/cover fixed no-repeat, var(--bg)}
+  .wrap{max-width:1200px;margin:0 auto;padding:16px}
+  h1{margin:0 0 12px;font-size:22px}
+  .row{display:flex;gap:16px;flex-wrap:wrap}
+  .card{background:rgba(26,31,42,.92);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.35);backdrop-filter:blur(2px)}
+  .hdr{font-weight:700}
+  .mut{color:var(--mut)}
+  .btn{border:0;border-radius:10px;background:#2b3346;color:#e7ecf9;padding:8px 12px;font-weight:600;cursor:pointer}
+  .btn.active{background:var(--accent);color:#fff}
+  .select,input{background:#2b3346;color:#e7ecf9;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{padding:6px 10px;border-radius:999px;background:#2b3346}
+  .grid{display:grid;gap:10px}
+  .pairs{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .tbl{width:100%;border-collapse:collapse}
+  .tbl th,.tbl td{padding:10px;border-bottom:1px solid var(--line);text-align:left}
+  .right{display:flex;justify-content:flex-end;gap:8px;align-items:center}
+  .two{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+  .ta-panel{display:none;margin-top:10px}
+  .ta-panel.open{display:block}
+  textarea{width:100%;min-height:140px;background:#111827;color:#e8ecf1;border:1px solid var(--line);border-radius:10px;padding:10px}
+  @media (max-width:1024px){ .two{grid-template-columns:1fr} .pairs{grid-template-columns:repeat(2,minmax(0,1fr))} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Charly Cripto • Panel</h1>
+
+  <!-- WIDGET DÓLAR (compacto estilo arbolito) -->
+  <div class="card">
+    <div class="row" style="align-items:center;justify-content:space-between">
+      <div class="hdr">Cotizaciones del dólar</div>
+      <div class="chips" id="usdChips"><span class="mut">Cargando…</span></div>
+    </div>
+  </div>
+
+  <!-- Selector de par (chips + input) -->
+  <div class="card" style="margin-top:12px">
+    <div class="row" style="align-items:center;gap:10px">
+      <div class="hdr">Par</div>
+      <div class="pairs grid" id="pairChips"></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
+        <input id="pairInput" placeholder="BTC/USDT" style="width:140px"/>
+        <button class="btn" id="setPair">Usar</button>
+        <span class="mut" id="pairNote"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cotizaciones por exchange -->
+  <div class="card" style="margin-top:12px">
+    <div class="row" style="align-items:center;justify-content:space-between">
+      <div class="hdr">Cotizaciones por exchange</div>
+      <div class="right">
+        <span class="mut">Mostrar en ARS con:</span>
+        <select id="rateSelect" class="select">
+          <option value="cripto" selected>Cripto</option>
+          <option value="mep">MEP</option>
+          <option value="ccl">CCL</option>
+          <option value="blue">Blue</option>
+          <option value="oficial">Oficial</option>
+        </select>
+      </div>
+    </div>
+    <table class="tbl">
+      <thead><tr><th style="width:22%">Exchange</th><th style="width:20%">Par</th><th>USD</th><th>ARS</th><th>Fuente</th></tr></thead>
+      <tbody id="exBody"><tr><td colspan="5" class="mut">Cargando…</td></tr></tbody>
+    </table>
+    <div class="mut" id="exInfo" style="margin-top:6px"></div>
+  </div>
+
+  <!-- Gráfico + Análisis Técnico -->
+  <div class="two" style="margin-top:12px">
+    <div class="card">
+      <div class="hdr" style="margin-bottom:8px">Gráfico</div>
+      <div id="tradingview_c" style="height:480px"></div>
+      <div class="mut" style="margin-top:6px">Si el par no existe en TV (ej: *USDT/ARS*), se muestra <span id="fallbackSym" class="chip">BINANCE:BTCUSDT</span> a modo ilustrativo.</div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div class="hdr">Análisis Técnico</div>
+        <button class="btn" id="taBtn">Abrir</button>
+      </div>
+      <div class="ta-panel" id="taPanel">
+        <div class="mut" style="margin:6px 0 8px">Escribe o pega tu análisis (EMA/RSI/Soportes/Resistencias). Próximo paso: conectar IA.</div>
+        <textarea id="taText" placeholder="EMA20>EMA50; RSI 56; Soportes 111.8k / 111.1k; Resistencias 113.2k ..."></textarea>
+        <div class="right" style="margin-top:8px">
+          <button class="btn" id="copyTA">Copiar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TradingView loader -->
+<script>
+  function loadTVLib(cb){
+    if (window.TradingView) return cb();
+    const s=document.createElement("script");
+    s.src="https://s3.tradingview.com/tv.js";
+    s.onload=cb; s.onerror=()=>console.error("No se pudo cargar tv.js");
+    document.head.appendChild(s);
+  }
+</script>
+
+<script>
+  // =================== Config ===================
+  const DEFAULT_PAIRS = ["BTC/USDT","ETH/USDT","SOL/USDT","USDT/ARS","USDC/ARS","DAI/ARS","BTC/ARS","ETH/ARS"];
+  let currentPair = "BTC/USDT";
+
+  // Spot globales
+  const EX_SPOT = [
+    {id:"binance", name:"Binance"},
+    {id:"okx", name:"OKX"},
+    {id:"bybit", name:"Bybit"},
+    {id:"kucoin", name:"KuCoin"},
+    {id:"bitget", name:"Bitget"},
+    {id:"mexc", name:"MEXC"}
+  ];
+  // P2P mayoristas
+  const EX_P2P = [
+    {id:"binancep2p", name:"Binance P2P"},
+    {id:"okxp2p", name:"OKX P2P"},
+    {id:"bybitp2p", name:"Bybit P2P"},
+    {id:"bitgetp2p", name:"Bitget P2P"}
+  ];
+  // Locales ARS (CriptoYa)
+  const EX_LOCAL = [
+    {id:"ripio", name:"Ripio"},
+    {id:"belo", name:"Belo"},
+    {id:"letsbit", name:"LetsBit"},
+    {id:"buenbit", name:"Buenbit"},
+    {id:"satoshitango", name:"SatoshiTango"},
+    {id:"tiendacrypto", name:"TiendaCrypto"},
+    {id:"argenbtc", name:"ArgenBTC"},
+    {id:"lemoncash", name:"Lemon"}
+  ];
+
+  let dolarRates = null; // cripto/mep/ccl/blue/oficial
+
+  // =================== Utils ===================
+  const $ = (id)=>document.getElementById(id);
+  const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
+  const toPath = (s)=> String(s).trim().toLower
