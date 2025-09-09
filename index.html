@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Charly Cripto • MVP</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<style>
+  :root{
+    --bg:#0e0f13;--card:#1a1f2a;--mut:#9aa3b2;--line:#2a3040;--txt:#e8ecf1;--accent:#4f7dff
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif;
+    background: url("/Muro.jpg") center/cover fixed no-repeat, var(--bg);
+  }
+  .wrap{max-width:1100px;margin:0 auto;padding:16px}
+  h1{margin:0 0 12px;font-size:24px}
+  .card{
+    background:rgba(26,31,42,.92);border:1px solid var(--line);border-radius:14px;padding:16px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35);backdrop-filter: blur(2px);
+  }
+  .row{display:flex;gap:16px;flex-wrap:wrap}
+  .grow{flex:1 1 520px}
+  .side{flex:1 1 300px;max-width:360px}
+  .pill{display:inline-block;padding:6px 12px;border-radius:10px;background:#2b3346;color:#d9dfeb}
+  .mut{color:var(--mut)}
+  .grid{display:grid;gap:10px}
+  .pairs{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .btn{
+    border:0;border-radius:10px;background:#2b3346;color:#e7ecf9;padding:10px 12px;font-weight:600;cursor:pointer
+  }
+  .btn.active{background:var(--accent);color:white}
+  .rates{width:100%;border-collapse:collapse}
+  .rates th,.rates td{padding:10px;border-bottom:1px solid var(--line);text-align:left}
+  .tbl{width:100%;border-collapse:collapse}
+  .tbl th,.tbl td{padding:10px;border-bottom:1px solid var(--line)}
+  .hdr{font-weight:700}
+  .right{display:flex;justify-content:flex-end;gap:8px;align-items:center}
+  .chip{padding:6px 10px;border-radius:999px;background:#2b3346}
+  .select{background:#2b3346;color:#e7ecf9;border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+  .ta-panel{display:none;margin-top:10px}
+  .ta-panel.open{display:block}
+  textarea{width:100%;min-height:140px;background:#111827;color:#e8ecf1;border:1px solid var(--line);border-radius:10px;padding:10px}
+  @media (max-width:900px){ .side{max-width:none} }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Charly Cripto • App</h1>
+
+    <!-- WIDGET DÓLAR -->
+    <div class="card">
+      <div class="row" style="align-items:center;justify-content:space-between;gap:8px">
+        <div><span class="hdr">Cotizaciones del dólar (ARS)</span> <span class="mut" id="ts"></span></div>
+        <div class="right">
+          <span class="mut">Tasa usada:</span>
+          <select id="rateSelect" class="select">
+            <option value="cripto">Cripto</option>
+            <option value="mep">MEP</option>
+            <option value="ccl">CCL</option>
+            <option value="blue">Blue</option>
+            <option value="oficial">Oficial</option>
+          </select>
+          <input id="manualVal" type="number" placeholder="Manual ARS/USD" class="select" style="width:140px"/>
+          <button class="btn" id="setManual">Usar manual</button>
+        </div>
+      </div>
+      <table class="rates" id="ratesTbl"></table>
+    </div>
+
+    <!-- PARES -->
+    <div class="card" style="margin-top:14px">
+      <div class="hdr" style="margin-bottom:8px">Pares (Binance)</div>
+      <div class="grid pairs" id="pairs"></div>
+    </div>
+
+    <!-- GRÁFICO + PANEL LATERAL -->
+    <div class="row" style="margin-top:14px">
+      <div class="card grow">
+        <div class="hdr" style="margin-bottom:8px">Gráfico (Binance) & Stats 24h</div>
+        <div id="tvwrap" style="height:480px">
+          <!-- TradingView Widget -->
+          <div class="tradingview-widget-container">
+            <div id="tradingview_c" style="height:440px"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card side">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div class="hdr">Herramientas</div>
+          <button class="btn" id="taBtn">Análisis Técnico</button>
+        </div>
+        <div class="ta-panel" id="taPanel">
+          <div class="mut" style="margin:6px 0 8px">Escribe o genera un análisis (EMA/RSI/soportes). Próximo paso: conectar IA.</div>
+          <textarea id="taText" placeholder="Ej: Tendencia alcista en H1; EMA20>EMA50; RSI 58; soportes 111.8k / 111.1k; resistencias 113.2k ..."></textarea>
+          <div class="right" style="margin-top:8px">
+            <button class="btn" id="copyTA">Copiar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLA EXCHANGES -->
+    <div class="card" style="margin-top:14px">
+      <div class="hdr" style="margin-bottom:8px">Cotizaciones por Exchange</div>
+      <table class="tbl" id="exTbl">
+        <thead>
+          <tr><th>Exchange</th><th>Par</th><th>USD</th><th>ARS</th></tr>
+        </thead>
+        <tbody id="exBody"><tr><td colspan="4" class="mut">Cargando...</td></tr></tbody>
+      </table>
+      <div class="mut" style="margin-top:6px" id="exInfo">API: cargando…</div>
+    </div>
+  </div>
+
+  <!-- TradingView script -->
+  <script src="https://s3.tradingview.com/tv.js"></script>
+
+  <script>
+    // ----------------- Config -----------------
+    const EXCHANGES = [
+      { id:"binance",  name:"Binance" },
+      { id:"bybit",    name:"Bybit" },
+      { id:"okx",      name:"OKX" },
+      { id:"bitget",   name:"Bitget" },
+      { id:"mexc",     name:"MEXC" },
+      { id:"kucoin",   name:"KuCoin" },
+      // 👉 Luego sumamos locales: Ripio, Lemon, Let'sBit, Buenbit, ArgenBTC, SatoshiTango, Belo, TiendaCrypto, PlusCrypto, UniversalCoins, Saldo, PaxfulP2P, BinanceP2P, OKXP2P, BitgetP2P, etc.
+    ];
+
+    const PAIRS = ["BTC/USDT","ETH/USDT","SOL/USDT","BNB/USDT","ADA/USDT","XRP/USDT","DOGE/USDT","USDT/ARS","USDC/ARS","DAI/ARS"];
+    let currentPair = "BTC/USDT";
+    let RATES = null;   // {cripto, mep, ...}
+    let RATE_KEY = "cripto";
+
+    // ----------------- UI: Pairs -----------------
+    const pairsEl = document.getElementById("pairs");
+    function drawPairs(){
+      pairsEl.innerHTML = "";
+      PAIRS.forEach(p=>{
+        const b = document.createElement("button");
+        b.className = "btn" + (p===currentPair ? " active": "");
+        b.textContent = p;
+        b.onclick = ()=>{ currentPair=p; drawPairs(); loadExchanges(); loadTV(); };
+        pairsEl.appendChild(b);
+      });
+    }
+
+    // ----------------- Rates widget -----------------
+    const tsEl = document.getElementById("ts");
+    const ratesTbl = document.getElementById("ratesTbl");
+    const sel = document.getElementById("rateSelect");
+    const setManual = document.getElementById("setManual");
+    const manualVal = document.getElementById("manualVal");
+
+    async function loadRates(source="default"){
+      const url = source==="manual" ? `/api/rates?source=manual&value=${Number(manualVal.value||0)}` : `/api/rates`;
+      const r = await fetch(url); RATES = await r.json();
+      tsEl.textContent = new Date().toLocaleTimeString();
+      drawRates();
+      sel.value = RATE_KEY;
+      loadExchanges();
+    }
+    function drawRates(){
+      if(!RATES) return;
+      const rows = [
+        ["Dólar Oficial", RATES.oficial],
+        ["Dólar Tarjeta", Math.round(RATES.oficial*1.3*1.45)], // aprox (editable)
+        ["Dólar Blue", RATES.blue],
+        ["Dólar MEP", RATES.mep],
+        ["Dólar CCL", RATES.ccl],
+        ["Dólar Cripto", RATES.cripto]
+      ].map(([k,v])=>`<tr><th>${k}</th><td class="hdr">venta —</td><td class="hdr">compra —</td><td class="right"><span class="chip">$ ${v.toLocaleString("es-AR")}</span></td></tr>`).join("");
+      ratesTbl.innerHTML = `<tr><th style="width:40%">Tipo</th><th>venta</th><th>compra</th><th>ARS</th></tr>` + rows;
+    }
+    sel.onchange = ()=>{ RATE_KEY = sel.value; loadExchanges(); };
+    setManual.onclick = ()=>{ RATE_KEY="cripto"; sel.value="cripto"; loadRates("manual"); };
+
+    // ----------------- TradingView -----------------
+    let tvWidget = null;
+    function loadTV(){
+      // Sólo funciona con símbolos que existan en TradingView (USDT/ARS no siempre está).
+      const [base,quote] = currentPair.split("/");
+      const tvSym = `${base}${quote}`; // ej: BTCUSDT
+      if(tvWidget && tvWidget.remove) tvWidget.remove();
+      tvWidget = new TradingView.widget({
+        container_id: "tradingview_c",
+        symbol: `BINANCE:${tvSym}`,
+        interval: "60",
+        timezone: "America/Argentina/Buenos_Aires",
+        theme: "dark",
+        style: "1",
+        locale: "es",
+        toolbar_bg: "#1a1f2a",
+        withdateranges: true,
+        hide_top_toolbar: false,
+        hide_legend: false,
+        allow_symbol_change: false,
+        autosize: true
+      });
+    }
+
+    // ----------------- Tabla de Exchanges -----------------
+    const exBody = document.getElementById("exBody");
+    const exInfo = document.getElementById("exInfo");
+
+    async function loadExchanges(){
+      if(!RATES){ await loadRates(); return; }
+      const rate = RATES[RATE_KEY] || RATES.cripto || 1;
+
+      exBody.innerHTML = `<tr><td colspan="4" class="mut">Actualizando…</td></tr>`;
+
+      // Si el par es stablecoin/ARS, mostramos 1 USD y su ARS directo
+      const isStableARS = /^(USDT|USDC|DAI)\/ARS$/.test(currentPair);
+      if(isStableARS){
+        const usd = 1; // 1 USDT≈1 USD
+        const ars = rate;
+        const stable = currentPair.split("/")[0];
+        exBody.innerHTML = EXCHANGES.map(e=>{
+          return `<tr>
+            <td>${e.name}</td>
+            <td>${stable}/ARS</td>
+            <td class="hdr">$ ${usd.toFixed(2)}</td>
+            <td class="hdr">$ ${ars.toLocaleString("es-AR")}</td>
+          </tr>`;
+        }).join("");
+        exInfo.textContent = `Tasa usada: ${RATE_KEY.toUpperCase()} • ${rate} ARS/USD`;
+        return;
+      }
+
+      // Pairs contra USDT (BTC/USDT, etc.)
+      const pair = currentPair.replace("/",""); // BTCUSDT
+      const out = [];
+      for (const e of EXCHANGES){
+        try{
+          const r = await fetch(`/api/price?exchange=${e.id}&pair=${pair}`);
+          const d = await r.json();
+          if(d && d.usd){
+            const usd = +d.usd;
+            const ars = usd * rate;
+            out.push(`<tr>
+              <td>${e.name}</td>
+              <td>${currentPair}</td>
+              <td class="hdr">$ ${usd.toLocaleString("en-US",{maximumFractionDigits:8})}</td>
+              <td class="hdr">$ ${Math.round(ars).toLocaleString("es-AR")}</td>
+            </tr>`);
+          }else{
+            out.push(`<tr><td>${e.name}</td><td>${currentPair}</td><td colspan="2" class="mut">—</td></tr>`);
+          }
+        }catch(_){
+          out.push(`<tr><td>${e.name}</td><td>${currentPair}</td><td colspan="2" class="mut">error</td></tr>`);
+        }
+      }
+      exBody.innerHTML = out.join("");
+      exInfo.textContent = `Exchanges ${EXCHANGES.length} • Tasa usada: ${RATE_KEY.toUpperCase()} = ${rate} ARS/USD`;
+    }
+
+    // ----------------- TA panel -----------------
+    const taBtn = document.getElementById("taBtn");
+    const taPanel = document.getElementById("taPanel");
+    const taText = document.getElementById("taText");
+    const copyTA = document.getElementById("copyTA");
+    taBtn.onclick = ()=> taPanel.classList.toggle("open");
+    copyTA.onclick = ()=>{
+      taText.select(); document.execCommand("copy");
+      copyTA.textContent = "¡Copiado!"; setTimeout(()=>copyTA.textContent="Copiar",1200);
+    };
+
+    // ----------------- Init -----------------
+    drawPairs();
+    loadRates().then(()=>{ loadTV(); loadExchanges(); });
+
+    // Auto-refresh cada 30s
+    setInterval(()=>{ loadExchanges(); }, 30000);
+  </script>
+</body>
+</html>
