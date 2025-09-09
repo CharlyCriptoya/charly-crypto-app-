@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Charly Cripto • App</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <style>
+    :root {
+      --bg:#0e0f13; --card:#151821; --mut:#9aa3b2; --line:#232833; --txt:#e8ecf1;
+    }
+    * { box-sizing:border-box; }
+    body {
+      margin:0; color:var(--txt);
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif;
+      background:url('fondo.jpg') no-repeat center center fixed;
+      background-size:cover;
+      position:relative;
+    }
+    body::before {
+      content:""; position:fixed; inset:0;
+      background:rgba(10,12,18,.45); /* más claro para ver el muro */
+      z-index:-1;
+    }
+    a { color:#9ecbff; }
+    .wrap { max-width:1100px; margin:0 auto; padding:16px; }
+    h1 { margin:0 0 10px; font-size:22px }
+    .section {
+      background:rgba(21,24,33,.6); /* efecto vidrio */
+      backdrop-filter:blur(6px);
+      padding:12px;
+      border-radius:12px;
+      margin-top:12px;
+      box-shadow:0 4px 12px rgba(0,0,0,.25);
+    }
+    .mut { color:var(--mut); font-size:13px }
+    table { width:100%; border-collapse:collapse; margin-top:6px }
+    th,td { padding:6px 8px; border-bottom:1px solid var(--line); font-size:14px }
+    th { text-align:left; font-weight:600 }
+    td { font-weight:400 }
+    .pairs { display:flex; flex-wrap:wrap; gap:6px; }
+    .pairs button {
+      flex:1 1 auto; padding:6px 10px; border:0; border-radius:6px;
+      background:#232833; color:var(--txt); cursor:pointer; font-size:14px
+    }
+    .pairs button.active { background:#2962ff; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Charly Cripto • App</h1>
+
+    <!-- Cotizaciones del dólar -->
+    <div class="section">
+      <h3>Cotizaciones del dólar (ARS) <span id="dolar-time"></span></h3>
+      <table>
+        <tbody>
+          <tr><td>Dólar Oficial</td><td>venta <span id="oficial-ask">—</span></td><td>compra <span id="oficial-bid">—</span></td></tr>
+          <tr><td>Dólar Tarjeta</td><td>venta <span id="tarjeta-ask">—</span></td><td>compra <span id="tarjeta-bid">—</span></td></tr>
+          <tr><td>Dólar Blue</td><td>venta <span id="blue-ask">—</span></td><td>compra <span id="blue-bid">—</span></td></tr>
+          <tr><td>Dólar MEP</td><td>venta <span id="mep-ask">—</span></td><td>compra <span id="mep-bid">—</span></td></tr>
+          <tr><td>Dólar CCL</td><td>venta <span id="ccl-ask">—</span></td><td>compra <span id="ccl-bid">—</span></td></tr>
+          <tr><td>Dólar Cripto</td><td>venta <span id="cripto-ask">—</span></td><td>compra <span id="cripto-bid">—</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Selector de pares -->
+    <div class="section">
+      <h3>Pares (Binance)</h3>
+      <div class="pairs">
+        <button onclick="setPair('BTCUSDT')" class="active">BTC/USDT</button>
+        <button onclick="setPair('ETHUSDT')">ETH/USDT</button>
+        <button onclick="setPair('SOLUSDT')">SOL/USDT</button>
+        <button onclick="setPair('BNBUSDT')">BNB/USDT</button>
+        <button onclick="setPair('ADAUSDT')">ADA/USDT</button>
+        <button onclick="setPair('XRPUSDT')">XRP/USDT</button>
+        <button onclick="setPair('DOGEUSDT')">DOGE/USDT</button>
+        <button onclick="setPair('USDTARS')">USDT/ARS</button>
+        <button onclick="setPair('USDCARS')">USDC/ARS</button>
+      </div>
+    </div>
+
+    <!-- Gráfico TradingView -->
+    <div class="section">
+      <h3>Gráfico (Binance) & Stats 24h</h3>
+      <div id="tvchart" style="height:400px"></div>
+      <div class="mut">Último: <span id="stat-last">—</span> · Máx 24h: <span id="stat-high">—</span> · Mín 24h: <span id="stat-low">—</span> · Cambio: <span id="stat-change">—%</span></div>
+    </div>
+
+    <!-- Cotizaciones por exchange -->
+    <div class="section">
+      <h3>Cotizaciones por Exchange</h3>
+      <table class="table" id="exch-table">
+        <thead>
+          <tr><th>Exchange</th><th>Par</th><th>USD</th><th>ARS</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="mut" style="margin-top:8px">
+        API: <span id="exch-status">—</span> · exchanges <span id="exch-count">0</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://s3.tradingview.com/tv.js"></script>
+  <script>
+    let currentSymbol = 'BTCUSDT';
+    let widget;
+
+    function setPair(sym) {
+      currentSymbol = sym;
+      document.querySelectorAll('.pairs button').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+      loadQuotes();
+      renderChart();
+    }
+
+    function renderChart() {
+      if (widget) widget.remove();
+      widget = new TradingView.widget({
+        "container_id": "tvchart",
+        "symbol": "BINANCE:" + currentSymbol,
+        "interval": "60",
+        "theme": "dark",
+        "style": "1",
+        "locale": "es",
+        "autosize": true
+      });
+    }
+
+    // ====== Dólar ======
+    async function loadDolar() {
+      try {
+        const r = await fetch('/api/dolar');
+        const j = await r.json();
+        const fmt = v => v ? "$ " + new Intl.NumberFormat("es-AR").format(v) : "—";
+        document.getElementById("oficial-ask").textContent = fmt(j.oficial?.ask);
+        document.getElementById("oficial-bid").textContent = fmt(j.oficial?.bid);
+        document.getElementById("tarjeta-ask").textContent = fmt(j.tarjeta?.ask);
+        document.getElementById("tarjeta-bid").textContent = fmt(j.tarjeta?.bid);
+        document.getElementById("blue-ask").textContent   = fmt(j.blue?.ask);
+        document.getElementById("blue-bid").textContent   = fmt(j.blue?.bid);
+        document.getElementById("mep-ask").textContent    = fmt(j.mep?.ask);
+        document.getElementById("mep-bid").textContent    = fmt(j.mep?.bid);
+        document.getElementById("ccl-ask").textContent    = fmt(j.ccl?.ask);
+        document.getElementById("ccl-bid").textContent    = fmt(j.ccl?.bid);
+        document.getElementById("cripto-ask").textContent = fmt(j.cripto?.ask);
+        document.getElementById("cripto-bid").textContent = fmt(j.cripto?.bid);
+        document.getElementById("dolar-time").textContent = new Date(j.ts).toLocaleTimeString();
+      } catch(e) { console.log("dolar fail", e); }
+    }
+
+    // ====== Cotizaciones por exchange ======
+    async function loadQuotes() {
+      try {
+        document.getElementById('exch-status').textContent = 'cargando...';
+        const r = await fetch(`/api/quotes?pair=${currentSymbol}`, { cache:'no-store' });
+        const rows = await r.json();
+        const tb = document.querySelector('#exch-table tbody');
+        tb.innerHTML = '';
+        rows.forEach(row => {
+          const usdFmt = v => v==null ? '—' : new Intl.NumberFormat('es-AR',{maximumFractionDigits:2}).format(v);
+          const usd = usdFmt(row.lastUSD);
+          const ars = row.lastARS ? '$ ' + new Intl.NumberFormat('es-AR').format(row.lastARS) : '—';
+          tb.insertAdjacentHTML('beforeend',
+            `<tr><td>${row.exchange}</td><td>${row.pair}</td><td>${usd}</td><td>${ars}</td></tr>`);
+        });
+        document.getElementById('exch-count').textContent = rows.length;
+        document.getElementById('exch-status').textContent = 'ok';
+      } catch(e) {
+        document.getElementById('exch-status').textContent = 'error';
+      }
+    }
+
+    // inicializo
+    renderChart();
+    loadDolar();
+    loadQuotes();
+    setInterval(loadDolar, 15000);
+    setInterval(loadQuotes, 15000);
+  </script>
+</body>
+</html>
