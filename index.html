@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Charly Cripto — App</title>
+  <style>
+    :root {
+      --txt:#e8ecf1; --mut:#a5afc3; --card:rgba(15,17,25,.66);
+      --line:rgba(255,255,255,.08); --good:#28c76f; --bad:#ff4d4f;
+    }
+    *{box-sizing:border-box}
+    body {
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      background:#0b0d12 url("Muro.jpg") center/cover fixed no-repeat;
+      color:var(--txt);
+    }
+    .scrim{position:fixed;inset:0;background:linear-gradient(180deg,rgba(5,7,10,.55),rgba(5,7,10,.85))}
+    .wrap{position:relative;max-width:1180px;margin:0 auto;padding:16px}
+
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    h1{margin:0;font-size:20px}
+    .cta{padding:8px 12px;border:1px solid var(--line);border-radius:8px;
+         background:rgba(17,19,27,.6);color:#dbe9ff;text-decoration:none;font-size:14px}
+
+    /* Widget dólar compacto */
+    .usd-widget {
+      display:grid; grid-template-columns:repeat(3,1fr);
+      gap:8px; margin-bottom:14px;
+    }
+    .usd-box {
+      background:var(--card); border:1px solid var(--line); border-radius:12px;
+      padding:10px; text-align:center; font-size:14px;
+    }
+    .usd-box .label{font-size:12px;color:var(--mut);margin-bottom:4px}
+    .usd-box .val{font-size:16px;font-weight:700}
+    .usd-box .chg{font-size:12px;margin-top:2px}
+
+    /* Gráfico y tabla */
+    .grid-btm{display:grid;gap:14px}
+    @media(min-width:980px){.grid-btm{grid-template-columns:1fr 1fr}}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+    .ttl{font-size:13px;color:var(--mut);margin-bottom:8px}
+    .mut{color:var(--mut)}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{padding:6px;border-bottom:1px solid var(--line)}
+    th{text-align:left;color:var(--mut)}
+    td:last-child{text-align:right}
+    .footer{margin:20px 0 8px;color:var(--mut);font-size:12px;text-align:center}
+  </style>
+</head>
+<body>
+<div class="scrim"></div>
+<div class="wrap">
+  <div class="topbar">
+    <h1>Charly Cripto • App</h1>
+    <a class="cta" href="https://chat.openai.com" target="_blank">IA de Análisis Técnico</a>
+  </div>
+
+  <!-- Widget dólar compacto -->
+  <div class="usd-widget" id="usd-widget">
+    <div class="usd-box"><div class="label">Oficial</div><div class="val" id="usd-of">—</div><div class="chg" id="chg-of">—</div></div>
+    <div class="usd-box"><div class="label">Blue</div><div class="val" id="usd-blue">—</div><div class="chg" id="chg-blue">—</div></div>
+    <div class="usd-box"><div class="label">Cripto</div><div class="val" id="usd-cripto">—</div><div class="chg" id="chg-cripto">—</div></div>
+    <div class="usd-box"><div class="label">Tarjeta</div><div class="val" id="usd-tar">—</div><div class="chg" id="chg-tar">—</div></div>
+    <div class="usd-box"><div class="label">MEP</div><div class="val" id="usd-mep">—</div><div class="chg" id="chg-mep">—</div></div>
+    <div class="usd-box"><div class="label">CCL</div><div class="val" id="usd-ccl">—</div><div class="chg" id="chg-ccl">—</div></div>
+  </div>
+
+  <!-- Abajo: gráfico y exchanges -->
+  <div class="grid-btm">
+    <div class="card">
+      <div class="ttl">Gráfico (Binance)</div>
+      <div id="tvchart" style="height:400px;"></div>
+    </div>
+    <div class="card">
+      <div class="ttl">Cotizaciones por Exchange</div>
+      <table id="exch-table">
+        <thead><tr><th>Exchange</th><th>Par</th><th>Último</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">Hecho con 💙 por Charly — App</div>
+</div>
+
+<script src="https://s3.tradingview.com/tv.js"></script>
+<script>
+const API = {
+  dolar: '/api/dolar',
+  stats: (s) => `/api/stats24h?symbol=${s||'BTCUSDT'}`,
+  quotes: (s) => `/api/quotes?pair=${s||'BTCUSDT'}`
+};
+
+function fmt(n){return n==null?'—':"$ "+new Intl.NumberFormat("es-AR").format(n)}
+
+async function fetchDolar(){
+  try{
+    const r = await fetch(API.dolar); const j = await r.json();
+    document.getElementById('usd-of').textContent = fmt(j.oficial?.ask);
+    document.getElementById('usd-blue').textContent = fmt(j.blue?.ask);
+    document.getElementById('usd-cripto').textContent = fmt(j.cripto?.ask);
+    document.getElementById('usd-tar').textContent = fmt(j.tarjeta?.ask);
+    document.getElementById('usd-mep').textContent = fmt(j.mep?.ask);
+    document.getElementById('usd-ccl').textContent = fmt(j.ccl?.ask);
+  }catch(e){console.error("API dólar rota",e)}
+}
+
+function loadChart(symbol="BTCUSDT"){
+  new TradingView.widget({
+    container_id:"tvchart",autosize:true,theme:"dark",locale:"es",
+    symbol:"BINANCE:"+symbol,interval:"60"
+  });
+}
+
+async function fetchQuotes(symbol="BTCUSDT"){
+  try{
+    const r=await fetch(API.quotes(symbol)); const arr=await r.json();
+    const tb=document.querySelector("#exch-table tbody"); tb.innerHTML="";
+    arr.forEach(row=>{
+      tb.innerHTML+=`<tr><td>${row.exchange}</td><td>${row.pair}</td><td>${row.last??"—"}</td></tr>`;
+    });
+  }catch(e){console.error("API quotes rota",e)}
+}
+
+fetchDolar(); loadChart(); fetchQuotes();
+setInterval(()=>{fetchDolar();fetchQuotes()},15000);
+</script>
+</body>
+</html>
