@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Charly Cripto • MVP</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<style>
+  :root{
+    --bg:#0d0f12; --txt:#e9edf3; --mut:#9aa3b2; --card:#141824; --line:#232838;
+    --good:#27d39f; --bad:#ff6b6b; --chip:#1b2030;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; color:var(--txt);
+    background:#0d0f12 url("./Muro.jpeg") center/cover fixed no-repeat;
+    font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;
+  }
+  .veil{background: linear-gradient(180deg, rgba(13,15,18,.60), rgba(13,15,18,.85)); min-height:100vh;}
+  .wrap{max-width:1100px;margin:0 auto;padding:16px}
+  h1{margin:0 0 10px;font-size:22px;letter-spacing:.2px}
+  .mut{color:var(--mut)}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .card{
+    background: rgba(20,24,36,.86);
+    border:1px solid var(--line); border-radius:12px; padding:12px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.28);
+  }
+  .usdbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+  .chip{background:var(--chip); border:1px solid var(--line); padding:6px 10px; border-radius:999px; font-weight:600; font-size:13px}
+  table{width:100%; border-collapse:collapse}
+  th,td{padding:10px 8px;border-bottom:1px solid var(--line);font-size:14px}
+  th{text-align:left; font-size:13px; color:var(--mut); text-transform:uppercase; letter-spacing:.4px}
+  tr:hover td{background:rgba(255,255,255,.02)}
+  .pairbar{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+  .pairbtn{border:1px solid var(--line);background:transparent;color:var(--txt);padding:8px 10px;border-radius:10px;cursor:pointer;font-weight:600}
+  .pairbtn.active{background:#1b2540}
+  #chart{height:480px}
+  .chartwrap{height:480px}
+  .ai-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .ai-btn{background:#1d2a44;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:10px;font-weight:700;cursor:pointer}
+  .mono{font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace; font-size:13px}
+</style>
+</head>
+<body>
+<div class="veil">
+  <div class="wrap">
+
+    <h1>Charly Cripto • MVP <span class="mut">/ cotizaciones y señales rápidas</span></h1>
+
+    <!-- WIDGET DÓLAR -->
+    <div class="card">
+      <div class="usdbar" id="usdbar">
+        <span class="mut">Cotizaciones del dólar (AR):</span>
+      </div>
+    </div>
+
+    <!-- EXCHANGES & PARES -->
+    <div class="card" style="margin-top:12px">
+      <div class="row" style="justify-content:space-between; align-items:center">
+        <div><strong>Exchanges</strong> <span class="mut">/ precios spot por par</span></div>
+        <div class="pairbar" id="pairbar"></div>
+      </div>
+      <div style="margin-top:8px;overflow:auto">
+        <table id="exTable">
+          <thead>
+            <tr>
+              <th>Exchange</th>
+              <th>Par</th>
+              <th>Precio (USD)</th>
+              <th>Estimado (ARS)</th>
+            </tr>
+          </thead>
+          <tbody id="exBody"></tbody>
+        </table>
+      </div>
+      <div class="mut" style="margin-top:6px; font-size:12px">
+        * ARS estimado usando dólar blue como referencia rápida.
+      </div>
+    </div>
+
+    <!-- GRÁFICO -->
+    <div class="card" style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div><strong>Gráfico</strong> <span class="mut">/ BTCUSDT</span></div>
+        <div class="mut" style="font-size:12px">Widget: TradingView</div>
+      </div>
+      <div class="chartwrap" id="chart"></div>
+    </div>
+
+    <!-- “IA” / ANÁLISIS TÉCNICO -->
+    <div class="card" style="margin-top:12px">
+      <div><strong>Análisis técnico rápido</strong> <span class="mut">/ EMA, RSI, MACD sobre klines de Binance</span></div>
+      <div class="ai-actions">
+        <button class="ai-btn" id="analyzeBtn">Analizar BTCUSDT (15m)</button>
+        <span id="lastPrice" class="chip">—</span>
+      </div>
+      <pre id="aiOut" class="mono" style="white-space:pre-wrap; margin:0"></pre>
+    </div>
+
+    <div class="mut" style="margin:14px 2px 0; font-size:12px">
+      Healthcheck: <code class="mono">/healthz</code>.
+    </div>
+
+  </div>
+</div>
+
+<!-- TradingView widget -->
+<script src="https://s3.tradingview.com/tv.js"></script>
+<script>
+  const $ = (s)=>document.querySelector(s);
+  const fmt = (n, d=2)=> Number(n).toLocaleString('es-AR',{maximumFractionDigits:d});
+
+  // Dólar
+  async function loadDolar(){
+    try{
+      const r = await fetch("/api/dolar");
+      const j = await r.json();
+      const bar = $("#usdbar");
+      bar.innerHTML = '<span class="mut">Cotizaciones del dólar (AR):</span>';
+      const chips = [["Oficial", j?.oficial],["Tarjeta", j?.tarjeta],["Blue", j?.blue],["MEP", j?.mep],["CCL", j?.ccl]];
+      for (const [k,v] of chips){
+        if(!v) continue;
+        const s = document.createElement("span");
+        s.className = "chip";
+        s.textContent = `${k}: $ ${fmt(v)}`;
+        bar.appendChild(s);
+      }
+      return j;
+    }catch{ return null; }
+  }
+
+  // Exchanges
+  const EXCHANGES = [
+    {name:"Binance", key:"binance", map:(p)=>p},
+    {name:"Bybit", key:"bybit", map:(p)=>p},
+    {name:"OKX", key:"okx", map:(p)=>p.replace("USDT","-USDT")},
+    {name:"KuCoin", key:"kucoin", map:(p)=>p.replace("USDT","-USDT")},
+    {name:"MEXC", key:"mexc", map:(p)=>p},
+    {name:"Bitget", key:"bitget", map:(p)=>p},
+  ];
+  const PAIRS = ["BTCUSDT","ETHUSDT","USDTARS"];
+  let currentPair = "BTCUSDT";
+  let dolarBlue = null;
+
+  function renderPairBar(){
+    const bar = $("#pairbar");
+    bar.innerHTML = "";
+    PAIRS.forEach(p=>{
+      const b = document.createElement("button");
+      b.className = "pairbtn" + (p===currentPair ? " active" : "");
+      b.textContent = p.replace("USDT","/USDT").replace("ARS","/ARS");
+      b.onclick = ()=>{
+        currentPair = p;
+        renderPairBar();
+        loadTable();
+        if(p==="BTCUSDT") setTVSymbol("BINANCE:BTCUSDT");
+        if(p==="ETHUSDT") setTVSymbol("BINANCE:ETHUSDT");
+      };
+      bar.appendChild(b);
+    });
+  }
+
+  async function fetchTicker(exchange, symbol){
+    const r = await fetch(`/api/ticker?exchange=${exchange}&symbol=${symbol}`);
+    if(!r.ok) throw new Error(exchange+" "+symbol);
+    return r.json();
+  }
+
+  async function loadTable(){
+    const body = $("#exBody");
+    body.innerHTML = "<tr><td colspan='4' class='mut'>Cargando...</td></tr>";
+
+    if (!dolarBlue) {
+      const dj = await loadDolar();
+      dolarBlue = dj?.blue || null;
+    }
+
+    let rows = [];
+    if (currentPair === "USDTARS") {
+      const usd = 1;
+      const ars = dolarBlue ? dolarBlue * usd : null;
+      rows = EXCHANGES.map(ex => ({ exchange: ex.name, par: "USDT/ARS", usd, ars }));
+    } else {
+      rows = await Promise.all(EXCHANGES.map(async (ex)=>{
+        try{
+          const mapped = ex.map(currentPair);
+          const j = await fetchTicker(ex.key, mapped);
+          const usd = Number(j.price);
+          const ars = dolarBlue ? usd * dolarBlue : null;
+          return {exchange: ex.name, par: currentPair.replace("USDT","/USDT"), usd, ars};
+        }catch{
+          return {exchange: ex.name, par: currentPair.replace("USDT","/USDT"), usd: null, ars: null};
+        }
+      }));
+    }
+
+    body.innerHTML = "";
+    rows.forEach(r=>{
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${r.exchange}</td>
+        <td>${r.par}</td>
+        <td>${r.usd ? `$ ${fmt(r.usd, 2)}` : "—"}</td>
+        <td>${r.ars ? `$ ${fmt(r.ars, 0)}` : "—"}</td>
+      `;
+      body.appendChild(tr);
+    });
+  }
+
+  // TradingView
+  let tvWidget = null;
+  function setTVSymbol(sym){
+    if (!window.TradingView) return;
+    if (tvWidget) { try { tvWidget.remove(); } catch {} }
+    tvWidget = new TradingView.widget({
+      symbol: sym,
+      interval: "15",
+      container_id: "chart",
+      autosize: true,
+      timezone: "America/Argentina/Buenos_Aires",
+      theme: "dark",
+      style: "1",
+      locale: "es",
+      withdateranges: true,
+      allow_symbol_change: true
+    });
+  }
+
+  // “IA” local (indicadores rápidos)
+  async function analyze(){
+    const out = $("#aiOut"); out.textContent = "Calculando…";
+    try{
+      const r = await fetch("/api/klines?symbol=BTCUSDT&interval=15m&limit=500");
+      const kl = await r.json();
+      const closes = kl.map(k=>Number(k[4]));
+      const last = closes.at(-1);
+      $("#lastPrice").textContent = `BTCUSDT: $ ${fmt(last,2)}`;
+
+      const ema = (arr, p)=>{ const k=2/(p+1); let e=arr[0]; for(let i=1;i<arr.length;i++){ e = arr[i]*k + e*(1-k); } return e; };
+      const sma = (arr, p)=> arr.slice(-p).reduce((a,b)=>a+b,0)/p;
+      const rsi = (arr, p=14)=>{
+        let gains=0, losses=0;
+        for(let i=arr.length-p;i<arr.length;i++){
+          const diff = arr[i]-arr[i-1];
+          if(diff>=0) gains+=diff; else losses+=(-diff);
+        }
+        const rs = (gains/p) / ((losses/p)||1e-9);
+        return 100 - (100/(1+rs));
+      };
+      const macdCalc = (arr, fast=12, slow=26, sig=9)=>{
+        const emaN = (series, n)=>{
+          const k = 2/(n+1); let e = sma(series.slice(0,n), n);
+          for(let i=n;i<series.length;i++) e = series[i]*k + e*(1-k);
+          return e;
+        };
+        const macd = emaN(arr, fast) - emaN(arr, slow);
+        const signal = macd * 0.8; // aproximación rápida
+        return {macd, signal, hist: macd - signal};
+      };
+
+      const ema20 = ema(closes.slice(-120), 20);
+      const ema50 = ema(closes.slice(-200), 50);
+      const rsi14 = rsi(closes, 14);
+      const {macd, signal, hist} = macdCalc(closes);
+
+      let bias = "Neutral";
+      if (ema20 > ema50 && rsi14 < 70 && hist > 0) bias = "Alcista";
+      if (ema20 < ema50 && rsi14 > 30 && hist < 0) bias = "Bajista";
+
+      const risk = 0.0075, reward = 0.015;
+      const side = (bias==="Alcista") ? "LARGO" : (bias==="Bajista" ? "CORTO" : "ESPERAR");
+      const entry = last;
+      const sl = bias==="Alcista" ? entry*(1-risk) : bias==="Bajista" ? entry*(1+risk) : null;
+      const tp = bias==="Alcista" ? entry*(1+reward) : bias==="Bajista" ? entry*(1-reward) : null;
+
+      out.textContent =
+`Señal (15m): ${bias}
+Precio: ${fmt(last,2)} USD
+
+EMA20: ${fmt(ema20,2)} | EMA50: ${fmt(ema50,2)}
+RSI14: ${fmt(rsi14,1)} | MACD: ${fmt(macd,2)} / Señal: ${fmt(signal,2)} / Hist: ${fmt(hist,2)}
+
+Sugerencia: ${side}
+${sl ? `Stop Loss: ${fmt(sl,2)} USD` : ""} ${tp ? `| Take Profit: ${fmt(tp,2)} USD` : ""}
+*Educativo. No es asesoramiento financiero.*`;
+    }catch{
+      out.textContent = "No pude calcular indicadores. Probá de nuevo.";
+    }
+  }
+
+  // Init
+  (async ()=>{
+    renderPairBar();
+    await loadDolar();
+    await loadTable();
+    setTVSymbol("BINANCE:BTCUSDT");
+    $("#analyzeBtn").onclick = analyze;
+  })();
+
+  function renderPairBar(){
+    const bar = $("#pairbar");
+    bar.innerHTML = "";
+    ["BTCUSDT","ETHUSDT","USDTARS"].forEach(p=>{
+      const b = document.createElement("button");
+      b.className = "pairbtn" + (p===currentPair ? " active" : "");
+      b.textContent = p.replace("USDT","/USDT").replace("ARS","/ARS");
+      b.onclick = ()=>{
+        currentPair = p;
+        renderPairBar();
+        loadTable();
+        if(p==="BTCUSDT") setTVSymbol("BINANCE:BTCUSDT");
+        if(p==="ETHUSDT") setTVSymbol("BINANCE:ETHUSDT");
+      };
+      bar.appendChild(b);
+    });
+  }
+</script>
+</body>
+</html>
