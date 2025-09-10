@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Charly Cripto • MVP</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<style>
+  :root{
+    --bg:#0d0f12; --txt:#e9edf3; --mut:#9aa3b2; --card:#141824; --line:#232838;
+    --chip:#1b2030; --good:#27d39f; --bad:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; color:var(--txt);
+    background:#0d0f12 url("./Muro.jpeg") center/cover fixed no-repeat;
+    font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;
+  }
+  .veil{background: linear-gradient(180deg, rgba(13,15,18,.60), rgba(13,15,18,.85)); min-height:100vh;}
+  .wrap{max-width:1100px;margin:0 auto;padding:16px}
+  h1{margin:0 0 10px;font-size:22px;letter-spacing:.2px}
+  .mut{color:var(--mut)}
+  .card{background: rgba(20,24,36,.86); border:1px solid var(--line); border-radius:12px; padding:12px; box-shadow: 0 6px 24px rgba(0,0,0,.28);}
+  table{width:100%; border-collapse:collapse}
+  th,td{padding:10px 8px;border-bottom:1px solid var(--line);font-size:14px}
+  th{text-align:left; font-size:13px; color:var(--mut); text-transform:uppercase; letter-spacing:.4px}
+  tr:hover td{background:rgba(255,255,255,.02)}
+  .section-title{display:flex;justify-content:space-between;align-items:center}
+  .chartwrap{height:480px}
+  .ai-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .ai-btn{background:#1d2a44;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:10px;font-weight:700;cursor:pointer}
+  .mono{font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace; font-size:13px}
+
+  /* ===== Widget Dólar estilo “tarjetas” ===== */
+  .usdgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:10px}
+  .usdcard{background:rgba(12,14,18,.72);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .usdtitle{font-size:12px;letter-spacing:.12em;color:var(--mut);text-transform:uppercase;margin-bottom:8px}
+  .usdrow{display:flex;justify-content:space-between;align-items:baseline}
+  .usdlabel{color:var(--mut);font-size:14px}
+  .usdval{font-size:24px;font-weight:800}
+  .usdact{color:var(--mut);font-size:12px;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="veil">
+  <div class="wrap">
+    <h1>Charly Cripto • MVP <span class="mut">/ cotizaciones y señales rápidas</span></h1>
+
+    <!-- ===== WIDGET DÓLAR (ARRIBA) ===== -->
+    <div class="card">
+      <h2 style="margin:0 0 8px; font-size:24px; line-height:1.1">
+        Cotizaciones del Dólar <span class="mut">(ARS)</span>
+      </h2>
+      <div id="usdgrid" class="usdgrid"></div>
+    </div>
+
+    <!-- ===== PARES USDT (cada uno con TODOS los exchanges) ===== -->
+    <div id="pairsContainer"></div>
+
+    <!-- ===== GRÁFICO ===== -->
+    <div class="card" style="margin-top:12px">
+      <div class="section-title">
+        <div><strong>Gráfico</strong> <span class="mut">/ BTCUSDT</span></div>
+        <div class="mut" style="font-size:12px">Widget: TradingView</div>
+      </div>
+      <div class="chartwrap" id="chart"></div>
+    </div>
+
+    <!-- ===== “IA” ANÁLISIS TÉCNICO ===== -->
+    <div class="card" style="margin-top:12px">
+      <div><strong>Análisis técnico rápido</strong> <span class="mut">/ EMA, RSI, MACD</span></div>
+      <div class="ai-actions">
+        <button class="ai-btn" id="analyzeBtn">Analizar BTCUSDT (15m)</button>
+        <span id="lastPrice" class="chip">—</span>
+      </div>
+      <pre id="aiOut" class="mono" style="white-space:pre-wrap; margin:0"></pre>
+    </div>
+
+    <div class="mut" style="margin:14px 2px 0; font-size:12px">Healthcheck: <code class="mono">/healthz</code>.</div>
+  </div>
+</div>
+
+<script src="https://s3.tradingview.com/tv.js"></script>
+<script>
+/* ========= Util ========= */
+const fmt = (n, d=2)=> Number(n).toLocaleString('es-AR',{maximumFractionDigits:d});
+const fmtARS = (n)=> Number(n).toLocaleString('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:2});
+
+/* ========= Widget DÓLAR ========= */
+let usdData = null, usdTimer = null;
+function renderDollarCards(){
+  if(!usdData) return;
+  const grid = document.getElementById("usdgrid");
+  grid.innerHTML = "";
+  const items = [
+    ["Dólar Oficial", usdData.oficial],
+    ["Dólar Tarjeta", usdData.tarjeta],
+    ["Dólar Blue",    usdData.blue],
+    ["Dólar MEP",     usdData.mep],
+    ["Dólar CCL",     usdData.ccl],
+    ["Dólar Cripto",  usdData.cripto],
+  ];
+  for(const [title, obj] of items){
+    const venta = obj?.venta, compra = obj?.compra;
+    const card = document.createElement("div");
+    card.className = "usdcard";
+    card.innerHTML = `
+      <div class="usdtitle">${title}</div>
+      <div class="usdrow"><div class="usdlabel">venta</div><div class="usdval">${venta!=null ? fmtARS(venta) : "—"}</div></div>
+      <div class="usdrow" style="margin-top:4px"><div class="usdlabel">compra</div><div class="usdval">${compra!=null ? fmtARS(compra) : "—"}</div></div>
+      <div class="usdact">act: <span class="actsec">0s</span></div>`;
+    grid.appendChild(card);
+  }
+  if (usdTimer) clearInterval(usdTimer);
+  usdTimer = setInterval(()=>{
+    document.querySelectorAll(".usdact .actsec").forEach(el=>{
+      const s = Math.floor((Date.now() - (usdData.ts||Date.now()))/1000);
+      el.textContent = `${s}s`;
+    });
+  }, 1000);
+}
+async function loadDolar(){
+  try{
+    const r = await fetch("/api/dolar");
+    if(!r.ok) throw 0;
+    usdData = await r.json();
+    renderDollarCards();
+  }catch(e){ console.log("dolar widget off", e); }
+}
+
+/* ========= Exchanges soportados (mapeo símbolos) ========= */
+const EXCHANGES = [
+  {name:"Binance", key:"binance", map:(p)=>p},                               // BTCUSDT
+  {name:"Bybit",   key:"bybit",   map:(p)=>p},                               // BTCUSDT
+  {name:"OKX",     key:"okx",     map:(p)=>p.replace("USDT","-USDT")},       // BTC-USDT
+  {name:"KuCoin",  key:"kucoin",  map:(p)=>p.replace("USDT","-USDT")},       // BTC-USDT
+  {name:"MEXC",    key:"mexc",    map:(p)=>p},                               // BTCUSDT
+  {name:"Bitget",  key:"bitget",  map:(p)=>p},                               // BTCUSDT
+  {name:"Gate.io", key:"gate",    map:(p)=>p.replace("USDT","_USDT")},       // BTC_USDT
+  {name:"Bitstamp",key:"bitstamp",map:(p)=>p},                               // btcusdt (lower en server)
+  {name:"Kraken",  key:"kraken",  map:(p)=>p.replace("BTC","XBT")}           // XBTUSDT
+];
+
+/* ========= Pares a mostrar ========= */
+const USDT_PAIRS = ["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT"];
+const ARS_EST = ["USDTARS","USDCARS","DAIARS"]; // estimado con blue
+
+/* ========= Render secciones por PAR ========= */
+function createPairSection(pair){
+  const div = document.createElement("div");
+  div.className = "card";
+  div.style.marginTop = "12px";
+  div.innerHTML = `
+    <div class="section-title">
+      <div><strong>${pair.replace("USDT","/USDT").replace("ARS","/ARS")}</strong> <span class="mut">• spot</span></div>
+    </div>
+    <div style="margin-top:8px;overflow:auto">
+      <table>
+        <thead>
+          <tr><th>Exchange</th><th>Par</th><th>Precio (USD)</th><th>Estimado (ARS)</th></tr>
+        </thead>
+        <tbody id="tb-${pair}"></tbody>
+      </table>
+    </div>
+  `;
+  return div;
+}
+
+async function fetchTicker(exchange, symbol){
+  const r = await fetch(`/api/ticker?exchange=${exchange}&symbol=${symbol}`);
+  if(!r.ok) throw 0;
+  return r.json();
+}
+
+let dolarBlue = null;
+async function fillSpotPair(pair){
+  const tb = document.getElementById(`tb-${pair}`);
+  tb.innerHTML = "<tr><td colspan='4' class='mut'>Cargando…</td></tr>";
+
+  if (dolarBlue == null) {
+    // tomar blue venta
+    try{
+      const r = await fetch("/api/dolar");
+      if (r.ok){ const j = await r.json(); dolarBlue = Number(j?.blue?.venta) || null; }
+    }catch{}
+  }
+
+  const rows = await Promise.all(EXCHANGES.map(async ex=>{
+    try{
+      const mapped = ex.map(pair);
+      const j = await fetchTicker(ex.key, mapped);
+      const usd = Number(j.price);
+      const ars = dolarBlue ? usd * dolarBlue : null;
+      return {ex: ex.name, pair: pair.replace("USDT","/USDT"), usd, ars};
+    }catch{
+      return {ex: ex.name, pair: pair.replace("USDT","/USDT"), usd:null, ars:null};
+    }
+  }));
+
+  tb.innerHTML = "";
+  rows.forEach(r=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${r.ex}</td>
+      <td>${r.pair}</td>
+      <td>${r.usd!=null ? `$ ${fmt(r.usd,2)}` : "—"}</td>
+      <td>${r.ars!=null ? `$ ${fmt(r.ars,0)}` : "—"}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+/* ========= ARS estimado (stables) ========= */
+function createARSSection(code){
+  const div = document.createElement("div");
+  div.className = "card";
+  div.style.marginTop = "12px";
+  const label = code.replace("USDT","USDT").replace("ARS","ARS").replace("USDC","USDC").replace("DAI","DAI");
+  div.innerHTML = `
+    <div class="section-title">
+      <div><strong>${label.replace("USDTARS","USDT / ARS").replace("USDCARS","USDC / ARS").replace("DAIARS","DAI / ARS")}</strong> <span class="mut">• estimado con blue</span></div>
+    </div>
+    <div style="margin-top:8px;overflow:auto">
+      <table>
+        <thead><tr><th>Exchange</th><th>Par</th><th>Precio (USD)</th><th>Estimado (ARS)</th></tr></thead>
+        <tbody id="tb-${code}"></tbody>
+      </table>
+    </div>
+    <div class="mut" style="margin-top:6px; font-size:12px">* ARS estimado usando dólar blue venta.</div>
+  `;
+  return div;
+}
+
+function fillARSSection(code){
+  const tb = document.getElementById(`tb-${code}`);
+  tb.innerHTML = "";
+  EXCHANGES.forEach(ex=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${ex.name}</td>
+      <td>${code.replace("ARS","/ARS").replace("USDT","USDT").replace("USDC","USDC").replace("DAI","DAI")}</td>
+      <td>$ 1,00</td>
+      <td>${dolarBlue ? `$ ${fmt(dolarBlue,0)}` : "—"}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+/* ========= Chart & IA ========= */
+let tvWidget=null;
+function setTVSymbol(sym){
+  if (!window.TradingView) return;
+  if (tvWidget) { try { tvWidget.remove(); } catch {} }
+  tvWidget = new TradingView.widget({
+    symbol: sym, interval: "15", container_id: "chart",
+    autosize: true, timezone: "America/Argentina/Buenos_Aires",
+    theme: "dark", style: "1", locale: "es"
+  });
+}
+async function analyze(){
+  const out = document.getElementById("aiOut"); out.textContent = "Calculando…";
+  try{
+    const r = await fetch("/api/klines?symbol=BTCUSDT&interval=15m&limit=500");
+    const kl = await r.json();
+    const closes = kl.map(k=>Number(k[4]));
+    const last = closes.at(-1);
+    document.getElementById("lastPrice").textContent = `BTCUSDT: $ ${fmt(last,2)}`;
+
+    const ema=(a,p)=>{const k=2/(p+1);let e=a[0];for(let i=1;i<a.length;i++)e=a[i]*k+e*(1-k);return e};
+    const sma=(a,p)=>a.slice(-p).reduce((x,y)=>x+y,0)/p;
+    const rsi=(a,p=14)=>{let g=0,l=0;for(let i=a.length-p;i<a.length;i++){const d=a[i]-a[i-1];if(d>=0)g+=d;else l+=-d}const rs=(g/p)/((l/p)||1e-9);return 100-(100/(1+rs))};
+    const macd=(()=>{const e=(s,n)=>{const k=2/(n+1);let e=sma(s.slice(0,n),n);for(let i=n;i<s.length;i++)e=s[i]*k+e*(1-k);return e};const m=e(closes,12)-e(closes,26);const sig=m*0.8;return {m, sig, h:m-sig}})();
+
+    const ema20=ema(closes.slice(-120),20), ema50=ema(closes.slice(-200),50), rsi14=rsi(closes,14);
+    let bias="Neutral"; if(ema20>ema50 && rsi14<70 && macd.h>0) bias="Alcista"; if(ema20<ema50 && rsi14>30 && macd.h<0) bias="Bajista";
+    const risk=0.0075, reward=0.015, side=bias==="Alcista"?"LARGO":bias==="Bajista"?"CORTO":"ESPERAR";
+    const sl=bias==="Alcista"?last*(1-risk):bias==="Bajista"?last*(1+risk):null, tp=bias==="Alcista"?last*(1+reward):bias==="Bajista"?last*(1-reward):null;
+
+    out.textContent =
+`Señal (15m): ${bias}
+Precio: ${fmt(last,2)} USD
+
+EMA20: ${fmt(ema20,2)} | EMA50: ${fmt(ema50,2)}
+RSI14: ${fmt(rsi14,1)} | MACD: ${fmt(macd.m,2)} / Señal: ${fmt(macd.sig,2)} / Hist: ${fmt(macd.h,2)}
+
+Sugerencia: ${side}
+${sl ? `Stop Loss: ${fmt(sl,2)} USD` : ""} ${tp ? `| Take Profit: ${fmt(tp,2)} USD` : ""}
+
+*Educativo. No es asesoramiento financiero.*`;
+  }catch{ out.textContent = "No pude calcular indicadores."; }
+}
+
+/* ========= INIT ========= */
+(async ()=>{
+  await loadDolar();
+
+  // Contenedor de pares
+  const container = document.getElementById("pairsContainer");
+
+  // Secciones USDT
+  USDT_PAIRS.forEach(p=>{
+    const sec = createPairSection(p);
+    container.appendChild(sec);
+  });
+
+  // Secciones ARS estimado
+  ARS_EST.forEach(code=>{
+    const sec = createARSSection(code);
+    container.appendChild(sec);
+  });
+
+  // Cargar datos
+  for (const p of USDT_PAIRS) await fillSpotPair(p);
+  // ARS (mostrar con blue)
+  if (usdData?.blue?.venta) { dolarBlue = Number(usdData.blue.venta); }
+  ARS_EST.forEach(code=> fillARSSection(code));
+
+  // Chart + IA
+  setTVSymbol("BINANCE:BTCUSDT");
+  document.getElementById("analyzeBtn").onclick = analyze;
+})();
+</script>
+</body>
+</html>
