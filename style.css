@@ -1,0 +1,38 @@
+:root{
+  --bg:#0e0f13;--card:#151821;--mut:#9aa3b2;--line:#232833;--txt:#e8ecf1
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  color:var(--txt);
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif;
+  background:#0e0f13 url("Muro.jpg") center/cover fixed no-repeat;
+}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+h1{margin:0 0 12px;font-size:22px}
+
+.card{
+  background:rgba(21,24,33,.92);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:14px;
+  margin:10px 0;
+  box-shadow:0 6px 20px rgba(0,0,0,.25);
+}
+
+/* grillas */
+.grid6{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media (min-width:720px){.grid6{grid-template-columns:repeat(3,1fr)}}
+@media (min-width:980px){.grid6{grid-template-columns:repeat(6,1fr)}}
+
+.dol-box{padding:10px;border-radius:12px;background:#0f1219;border:1px solid #242a36}
+.dol-tit{font-weight:700}
+.dol-sub{color:var(--mut);font-size:12px;margin-top:2px}
+.dol-val{font-size:20px;margin-top:6px}
+
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{border-bottom:1px solid var(--line);padding:10px 8px;text-align:left}
+.table th{color:#cdd6e2;font-weight:700}
+.badge{display:inline-block;padding:4px 8px;border:1px solid #2f3847;border-radius:20px}
+.footer{color:var(--mut);font-size:12px;margin:16px 2px}
