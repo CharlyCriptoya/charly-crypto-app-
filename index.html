@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Charly Cripto • MVP</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="wrap">
+    <h1>Charly Cripto • MVP <a class="badge" href="/healthz">/healthz</a></h1>
+
+    <!-- ===== DÓLAR EN ARS (6 widgets) ===== -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <div style="font-weight:800;font-size:22px;">Dólar en ARS</div>
+        <small style="color:#9aa3b2">Oficial • Blue • Tarjeta • MEP • CCL • Cripto</small>
+      </div>
+
+      <div class="grid6" id="dollarGrid">
+        <!-- Se llenan por JS -->
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+        <div class="badge">Cripto (USDT≈USD):</div>
+        <input id="usdtArs" type="number" inputmode="numeric" step="1" placeholder="1600" style="width:110px;padding:8px;border-radius:10px;border:1px solid #2c3342;background:#0f1219;color:#e8ecf1">
+        <button id="btnUsdtSet" class="badge">Usar</button>
+        <small style="color:#9aa3b2">Si no carga, poné tu valor y tocá “Usar”.</small>
+      </div>
+    </div>
+
+    <!-- ===== PARES ===== -->
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <button class="badge sym" data-sym="BTCUSDT">BTC</button>
+        <button class="badge sym" data-sym="ETHUSDT">ETH</button>
+        <button class="badge sym" data-sym="SOLUSDT">SOL</button>
+        <button class="badge sym" data-sym="USDTUSD">USDT</button>
+        <button class="badge sym" data-sym="USDCUSD">USDC</button>
+        <button class="badge sym" data-sym="DAIUSD">DAI</button>
+        <label style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="chkArs">
+          <span>Mostrar en ARS también</span>
+        </label>
+      </div>
+
+      <table class="table" id="tblQuotes">
+        <thead>
+          <tr>
+            <th>Exchange</th><th>Símbolo</th><th>Precio (USD)</th><th>Precio (ARS)</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <small style="color:#9aa3b2">Fuentes: Binance • Bybit • OKX (resto listados para completar)</small>
+    </div>
+
+    <!-- ===== TV Chart ===== -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-weight:800;font-size:22px;">Gráfico de Velas (Binance)</div>
+        <div id="chartPair" style="color:#9aa3b2">Par: ETHUSDT · Intervalo: 1h</div>
+      </div>
+      <div id="tvchart" style="height:420px;"></div>
+    </div>
+
+    <!-- ===== Análisis técnico simple (MA) ===== -->
+    <div class="card">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <div style="font-weight:800;font-size:24px;">Análisis técnico rápido</div>
+        <small style="color:#9aa3b2">Basado en medias móviles sobre el último dataset del gráfico</small>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:10px;">
+        <label>MA corta <input id="maS" type="number" value="9" style="width:70px;"></label>
+        <label>MA larga <input id="maL" type="number" value="21" style="width:70px;"></label>
+        <button id="btnMA" class="badge">Analizar</button>
+      </div>
+      <div id="maOut" class="card" style="margin:12px 0 0 0;"></div>
+    </div>
+
+    <div class="footer">© Charly • Hecho para Argentina — fondo: <b>Muro.jpg</b></div>
+  </div>
+
+  <!-- Libs -->
+  <script src="https://s3.tradingview.com/tv.js"></script>
+  <script src="app.js" type="module"></script>
+</body>
+</html>
