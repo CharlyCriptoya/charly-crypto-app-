@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Charly Cripto • MVP</title>
+<meta name="color-scheme" content="dark light" />
+<style>
+  :root{--bg:#0d0f12;--txt:#e9edf3;--mut:#9aa3b2;--card:#141824;--line:#232838;--ok:#59d499;--warn:#ffd166}
+  *{box-sizing:border-box}
+  body{
+    margin:0;color:var(--txt);
+    background:var(--bg) url("./Muro.jpeg") center/cover fixed no-repeat;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif
+  }
+  @media (prefers-color-scheme:dark){ body{ background-image:linear-gradient(180deg,#0d0f12 0%,#101424 100%) } }
+  .wrap{max-width:1100px;margin:0 auto;padding:12px}
+  header{display:flex;align-items:center;gap:10px;margin:8px 0 10px}
+  h1{margin:0;font-size:18px}
+  .pill{font-size:12px;background:#1b2030;color:var(--mut);padding:6px 10px;border-radius:999px}
+
+  .widget{background:#141824d9;border:1px solid var(--line);border-radius:14px;padding:12px}
+  .grid{display:grid;gap:10px;grid-template-columns:repeat(2,minmax(0,1fr))}
+  @media (min-width:700px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  @media (min-width:980px){.grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
+  .tile{background:linear-gradient(180deg,#171b2a,#121522);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .k{font-size:11px;color:var(--mut);letter-spacing:.4px}
+  .row{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+  .lab{font-size:12px;color:var(--mut)}
+  .val{font:600 18px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif}
+  .sub{font-size:11px;color:var(--mut);margin-top:6px}
+  .hint{color:var(--mut);font-size:12px;margin-top:6px}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header><h1>Charly Cripto • MVP</h1><span class="pill">Alpha</span></header>
+
+    <!-- Dólar (2 columnas en celular) -->
+    <div class="widget">
+      <div class="grid" id="dolarGrid"></div>
+      <div class="hint" id="dolarHint">Actualizando…</div>
+    </div>
+  </div>
+
+<script>
+/* ======= V3 FINAL (2025-09-11) — sólo dólar ======= */
+const $ = s => document.querySelector(s);
+const fmtARS = n => Number(n).toLocaleString('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:2});
+const toNum = x => { const n = Number(x); return Number.isFinite(n) ? n : null; };
+
+const ORDER = [
+  { id:'oficial', label:'DÓLAR OFICIAL' },
+  { id:'tarjeta', label:'DÓLAR TARJETA' },
+  { id:'blue',    label:'DÓLAR BLUE' },
+  { id:'mep',     label:'DÓLAR MEP' },
+  { id:'ccl',     label:'DÓLAR CCL' },
+  { id:'cripto',  label:'DÓLAR CRIPTO' },
+];
+// alias por si cambia la API
+const ALIAS = {
+  tarjeta:['tarjeta','solidario','qatar'],
+  cripto:['cripto','usdt']
+};
+
+function pick(data, id){
+  if(ALIAS[id]) for(const k of ALIAS[id]) if(data?.[k]!=null) return data[k];
+  return data?.[id] ?? null;
+}
+function norm(x){
+  if(x==null) return {venta:null,compra:null};
+  if(typeof x==='number') return {venta:x,compra:x};
+  if(typeof x==='string' && !isNaN(+x)) {const n=+x; return {venta:n,compra:n};}
+  const venta = toNum(x.venta ?? x.sell ?? x.ask ?? x.value ?? x.promedio);
+  const compra= toNum(x.compra ?? x.buy  ?? x.bid ?? x.value ?? x.promedio);
+  return {venta: venta ?? compra ?? null, compra: compra ?? venta ?? null};
+}
+
+async function getDolarData(){
+  // 1) usa tu proxy /api/dolar (server.js que ya tenés)
+  try{
+    const r = await fetch('/api/dolar',{cache:'no-store'}); if(r.ok) return await r.json();
+  }catch(_){}
+  // 2) fallback a CriptoYa directo
+  const rr = await fetch('https://criptoya.com/api/dolar',{cache:'no-store'});
+  return await rr.json();
+}
+
+function render(data){
+  const grid = $('#dolarGrid'); grid.innerHTML='';
+  ORDER.forEach(({id,label})=>{
+    const q = norm( pick(data,id) );
+    const el = document.createElement('div'); el.className='tile';
+    el.innerHTML = `
+      <div class="k">${label}</div>
+      <div class="row"><div class="lab">venta</div><div class="val">${q.venta!=null?fmtARS(q.venta):'—'}</div></div>
+      <div class="row"><div class="lab">compra</div><div class="val">${q.compra!=null?fmtARS(q.compra):'—'}</div></div>
+      <div class="sub">act: 0s</div>
+    `;
+    grid.appendChild(el);
+  });
+}
+
+let secs=0;
+async function tick(){
+  try{
+    $('#dolarHint').textContent='Actualizando…';
+    const data = await getDolarData();
+    render(data);
+    $('#dolarHint').innerHTML = `Última actualización: ${new Date().toLocaleTimeString('es-AR')} <span style="color:var(--ok)">OK</span>`;
+    secs=0;
+  }catch(e){
+    $('#dolarHint').innerHTML = `No se pudo actualizar <span style="color:var(--warn)">${e.message||e}</span>`;
+  }
+}
+tick();
+setInterval(tick, 30000);
+setInterval(()=>{ secs++; document.querySelectorAll('.tile .sub').forEach(s=>s.textContent=`act: ${secs}s`); },1000);
+</script>
+</body>
+</html>
