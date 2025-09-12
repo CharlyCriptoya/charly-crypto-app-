@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Charly Cripto • MVP</title>
+<meta name="color-scheme" content="dark light" />
+<style>
+  :root{
+    --bg:#0d0f12; --txt:#e9edf3; --mut:#9aa3b2;
+    --card:#141824; --line:#232838; --chip:#1b2030; --good:#10b981; --bad:#ef4444;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; color:var(--txt);
+    background:#0d0f12 url("./Muro.jpg") center/cover fixed no-repeat;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif;
+  }
+  .wrap{max-width:1100px;margin:0 auto;padding:16px}
+  h1{margin:0 0 12px;font-size:20px;font-weight:700;letter-spacing:.2px;text-shadow:0 1px 2px #000}
+  .grid{display:grid;gap:12px}
+  .dolar-cards{grid-template-columns:repeat(6,minmax(0,1fr))}
+  @media (max-width:900px){ .dolar-cards{grid-template-columns:repeat(3,minmax(0,1fr))} }
+  @media (max-width:520px){ .dolar-cards{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  .card{
+    background:linear-gradient(180deg,rgba(20,24,36,.92),rgba(20,24,36,.86));
+    border:1px solid var(--line); border-radius:12px; padding:12px;
+    backdrop-filter: blur(6px);
+  }
+  .card h3{margin:0 0 8px;font-size:14px;font-weight:600;color:#cfe2ff}
+  .mini{display:flex;justify-content:space-between;gap:8px;align-items:end}
+  .mini b{font-size:16px}
+  .mini small{color:var(--mut)}
+  .section{margin-top:18px}
+  .chip{
+    display:inline-block;background:var(--chip);border:1px solid var(--line);
+    padding:6px 10px;border-radius:999px;font-size:12px;color:#cbd5e1
+  }
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th,td{padding:10px;border-bottom:1px dashed var(--line);font-size:14px;text-align:left}
+  th{font-size:12px;color:#cbd5e1;text-transform:uppercase;letter-spacing:.6px}
+  .mut{color:var(--mut)}
+  .footer{margin:24px 0 8px;color:#93a0b5;font-size:12px;text-align:center}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>💹 Charly Cripto • MVP</h1>
+
+    <!-- Widget Dólares -->
+    <div id="dolares" class="grid dolar-cards"></div>
+
+    <!-- Selector de pares -->
+    <div class="section">
+      <span class="chip">Pares</span>
+      <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px">
+        <button class="chip" data-pairs="btc-usd,eth-usd,sol-usd,usdt-ars,usdc-ars,dai-ars">BTC/ETH/SOL + (USDT/USDC/DAI)/ARS</button>
+        <button class="chip" data-pairs="btc-usd,eth-usd,usdt-ars">Rápido: BTC, ETH, USDT</button>
+        <button class="chip" data-pairs="bnb-usd,ada-usd,xrp-usd,doge-usd,matic-usd,link-usd,ton-usd">Alt USD</button>
+      </div>
+    </div>
+
+    <!-- Tablas por par -->
+    <div id="pairs"></div>
+
+    <div class="footer">Hecho con ❤️ para arbitraje rápido. Fuente USD: CoinGecko. Fuente ARS/USDT (si responde): CriptoYA. Fuente dólares: DolarAPI.</div>
+  </div>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => [...document.querySelectorAll(sel)];
+const fmt = (n, dec=2) => n==null || Number.isNaN(n) ? "—" : n.toLocaleString("es-AR",{maximumFractionDigits:dec});
+
+async function loadDolares(){
+  const wrap = $("#dolares");
+  wrap.innerHTML = "";
+  try{
+    const j = await (await fetch("/api/dolares")).json();
+    const items = [
+      ["Oficial", j.oficial],
+      ["Blue", j.blue],
+      ["MEP", j.mep],
+      ["CCL", j.ccl],
+      ["Tarjeta", j.tarjeta],
+      ["Cripto", j.cripto] // puede venir null y no se muestra
+    ].filter(([,d])=>d);
+
+    items.forEach(([name, d])=>{
+      const el = document.createElement("div");
+      el.className = "card";
+      el.innerHTML = `
+        <h3>${name}</h3>
+        <div class="mini">
+          <div><small class="mut">Compra</small><br><b>$ ${fmt(d.compra)}</b></div>
+          <div><small class="mut">Venta</small><br><b>$ ${fmt(d.venta)}</b></div>
+        </div>
+        <div class="mut" style="margin-top:6px;font-size:11px">Fuente: ${d.fuente || "—"}</div>
+      `;
+      wrap.appendChild(el);
+    });
+  }catch(e){
+    wrap.innerHTML = `<div class="card"><h3>Dólares</h3><div class="mut">No se pudo cargar (${e})</div></div>`;
+  }
+}
+
+function pairBlock(pair, rows, source, error){
+  const [base, quote] = pair.toUpperCase().split("-");
+  const table = rows.length ? `
+    <table>
+      <thead><tr><th>Exchange</th><th>Par</th><th>Último</th><th class="mut">Vol 24h</th><th class="mut">Spread</th></tr></thead>
+      <tbody>
+        ${rows.map(r=>`
+          <tr>
+            <td>${r.exchange || "—"}</td>
+            <td>${r.pair || `${base}/${quote}`}</td>
+            <td><b>${quote==="ARS" ? "$ " : ""}${fmt(r.last)}</b></td>
+            <td class="mut">${r.volume24h ? fmt(r.volume24h) : "—"}</td>
+            <td class="mut">${r.spread!=null ? fmt(r.spread,2)+"%" : "—"}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  ` : `<div class="mut" style="padding:10px 0">Sin datos (${error || "—"})</div>`;
+
+  return `
+    <div class="section card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3 style="margin:0">${base}/${quote}</h3>
+        <span class="chip">Fuente: ${source}</span>
+      </div>
+      ${table}
+    </div>
+  `;
+}
+
+async function loadPairs(list){
+  const host = "/api/pairs?list="+encodeURIComponent(list);
+  const j = await (await fetch(host)).json();
+  const box = $("#pairs");
+  box.innerHTML = j.pairs.map(p => pairBlock(p.pair, p.rows || [], p.source || "—", p.error)).join("");
+}
+
+// Eventos de los chips
+$$("button[data-pairs]").forEach(btn=>{
+  btn.addEventListener("click", ()=> loadPairs(btn.dataset.pairs));
+});
+
+// Primer render
+loadDolares();
+loadPairs("btc-usd,eth-usd,usdt-ars");
+</script>
+</body>
+</html>
